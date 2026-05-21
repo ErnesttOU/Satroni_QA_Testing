@@ -446,10 +446,22 @@ function toggleCart() {
   document.body.style.overflow = panel.classList.contains('open') ? 'hidden' : '';
 }
 
+// ════════════════════════════════════════════════════════════════
 // ── SUPABASE CONFIG ──
+// Tu proyecto en Supabase. Estas dos variables son las "llaves"
+// que le permiten a tu página web hablar con la base de datos.
+// ════════════════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://ejydjvkvtchgknfrljrs.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_vGnLcF9Tm17OQGTL4t1deA_aTmkQYIu'
 
+// ── NOMBRE DEL BUCKET DE STORAGE ──
+// ⚠️ ACCIÓN REQUERIDA: Creá este bucket en Supabase antes de usar.
+// Pasos: Supabase → Storage → New bucket → Nombre: "entregas-img" → Public ✅
+const STORAGE_BUCKET = 'entregas-img'
+
+// ── HEADERS HTTP ──
+// Esto es como el "sobre" que acompaña cada mensaje que tu página
+// le manda a Supabase. Le dice quién sos y que mandás JSON.
 const sbHeaders = {
   'Content-Type': 'application/json',
   'apikey': SUPABASE_KEY,
@@ -509,7 +521,9 @@ async function renderEntregas() {
 // ── ADMIN ──
 const ADMIN_PASS = 'satroni2025'
 let adminLoggedIn = false
-let imgBase64 = null
+// ⚠️ ELIMINAMOS imgBase64 — ya no guardamos la imagen como texto gigante.
+// Ahora guardamos el archivo directamente para subirlo a Storage.
+let imgFile = null  // <- guarda el archivo de imagen seleccionado
 
 function toggleAdmin() {
   document.getElementById('admin-panel').classList.add('open')
@@ -546,10 +560,17 @@ function checkAdminPass() {
 function previewImg(input) {
   const file = input.files[0]
   if (!file) return
+
+  // ── NUEVO: guardamos el archivo real (no el base64) ──
+  // Antes convertíamos la imagen a un texto larguísimo (base64).
+  // Ahora simplemente guardamos el archivo para subirlo después.
+  imgFile = file
+
+  // Igual mostramos la preview local usando base64 (solo para que el admin
+  // pueda verla en pantalla antes de publicar, no se guarda así en Supabase)
   const reader = new FileReader()
   reader.onload = function(ev) {
-    imgBase64 = ev.target.result
-    document.getElementById('img-preview').src = imgBase64
+    document.getElementById('img-preview').src = ev.target.result
     document.getElementById('img-preview-wrap').style.display = 'block'
     document.getElementById('ent-img-url').value = ''
   }
@@ -557,13 +578,63 @@ function previewImg(input) {
 }
 
 function clearImgPreview() {
-  imgBase64 = null
+  // ── NUEVO: limpiamos imgFile en lugar de imgBase64 ──
+  imgFile = null
   document.getElementById('img-preview-wrap').style.display = 'none'
   document.getElementById('img-preview').src = ''
   document.getElementById('ent-img-file').value = ''
 }
 
+// ════════════════════════════════════════════════════════════════
+// ── SUBIR IMAGEN A SUPABASE STORAGE ──
+// Esta función nueva se encarga de subir el archivo de imagen
+// al "disco duro en la nube" de Supabase (el Storage/bucket).
+// Devuelve la URL pública de la imagen para guardarla en la tabla.
+// ════════════════════════════════════════════════════════════════
+async function subirImagen(file) {
+  // Generamos un nombre único para el archivo usando la fecha actual
+  // y un número aleatorio, así dos fotos nunca se pisan entre sí.
+  // Ejemplo de resultado: "1716300000000-a3f9z.jpg"
+  const ext  = file.name.split('.').pop()                          // extensión: jpg, png, webp...
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}` // nombre único
+
+  // Le mandamos el archivo a Supabase Storage con un fetch POST.
+  // La URL incluye el nombre del bucket y el path del archivo.
+  const uploadRes = await fetch(
+    `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`,
+    {
+      method: 'POST',
+      headers: {
+        // Para subir archivos al Storage no usamos JSON, usamos el tipo
+        // del archivo directamente (image/jpeg, image/png, etc.)
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': file.type
+      },
+      body: file   // el archivo binario va directo en el cuerpo del request
+    }
+  )
+
+  if (!uploadRes.ok) {
+    // Si algo salió mal, mostramos el error en consola para poder debuggear
+    const errorText = await uploadRes.text()
+    console.error('Error al subir imagen:', errorText)
+    throw new Error('No se pudo subir la imagen al Storage.')
+  }
+
+  // Armamos la URL pública de la imagen subida.
+  // Esta URL es la que se guarda en la columna "img" de la tabla entregas.
+  // Al ser pública, cualquier dispositivo puede verla sin autenticación.
+  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`
+}
+
+// ════════════════════════════════════════════════════════════════
 // ── AGREGAR entrega a Supabase ──
+// Cambios respecto a la versión anterior:
+//   1. Si hay imagen, la sube primero al Storage (no la convierte a base64)
+//   2. Guarda solo la URL corta en la tabla, no el texto gigante
+//   3. Muestra un indicador de "Publicando..." para que el admin sepa que espere
+// ════════════════════════════════════════════════════════════════
 async function agregarEntrega() {
   const nombre     = document.getElementById('ent-nombre').value.trim()
   const carrera    = document.getElementById('ent-carrera').value.trim()
@@ -576,30 +647,59 @@ async function agregarEntrega() {
     return
   }
 
-  const img = imgBase64 || imgUrl || ''
+  // ── NUEVO: mostramos feedback visual mientras se sube la imagen ──
+  // Esto evita que el admin toque algo mientras el archivo se está subiendo.
+  const btn = document.querySelector('#admin-form button[onclick*="agregarEntrega"]')
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Publicando...' }
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/entregas`, {
-    method: 'POST',
-    headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
-    body: JSON.stringify({ nombre, carrera, producto, comentario, img })
-  })
+  let img = imgUrl || ''  // por defecto usamos la URL manual si la pusieron
 
-  if (!res.ok) {
-    alert('Error al guardar. Revisá la consola.')
-    console.error(await res.text())
-    return
+  try {
+    // ── NUEVO: si hay un archivo seleccionado, lo subimos al Storage ──
+    // imgFile es el archivo que guardamos cuando el admin eligió la foto.
+    if (imgFile) {
+      img = await subirImagen(imgFile)
+      // img ahora es algo como:
+      // "https://ejydjv...supabase.co/storage/v1/object/public/entregas-img/1716300000-abc.jpg"
+      // Una URL corta y pública que funciona en cualquier dispositivo 🎉
+    }
+
+    // Guardamos el registro en la tabla "entregas" de Supabase.
+    // La columna "img" recibe la URL corta, no el base64.
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/entregas`, {
+      method: 'POST',
+      headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ nombre, carrera, producto, comentario, img })
+    })
+
+    if (!res.ok) {
+      alert('Error al guardar. Revisá la consola.')
+      console.error(await res.text())
+      return
+    }
+
+    // Limpiamos el formulario después de publicar con éxito
+    document.getElementById('ent-nombre').value     = ''
+    document.getElementById('ent-carrera').value    = ''
+    document.getElementById('ent-producto').value   = ''
+    document.getElementById('ent-comentario').value = ''
+    document.getElementById('ent-img-url').value    = ''
+    clearImgPreview()
+
+    // Actualizamos la vista pública y el panel admin
+    await renderEntregas()
+    await renderAdminLista()
+    alert('✅ Entrega publicada correctamente!')
+
+  } catch (err) {
+    // Si subirImagen() lanzó un error, lo capturamos acá
+    alert('Error: ' + err.message)
+    console.error(err)
+  } finally {
+    // ── NUEVO: siempre re-habilitamos el botón al terminar ──
+    // El "finally" se ejecuta tanto si hubo éxito como si hubo error.
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Publicar entrega' }
   }
-
-  document.getElementById('ent-nombre').value     = ''
-  document.getElementById('ent-carrera').value    = ''
-  document.getElementById('ent-producto').value   = ''
-  document.getElementById('ent-comentario').value = ''
-  document.getElementById('ent-img-url').value    = ''
-  clearImgPreview()
-
-  await renderEntregas()
-  await renderAdminLista()
-  alert('✅ Entrega publicada correctamente!')
 }
 
 // ── ELIMINAR entrega de Supabase ──
@@ -639,4 +739,5 @@ async function renderAdminLista() {
 }
 
 // ── INICIALIZAR ──
+// Al cargar la página, traemos las entregas de Supabase y las mostramos.
 renderEntregas()
