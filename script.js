@@ -124,7 +124,7 @@ universidad: {
     {
         name: 'Casio fx-991ES PLUS',
         img: 'assets/991ESPLUS.webp',
-        boxImg: '991ESPLUSBOX.webp',
+        boxImg: 'assets/991ESPLUSBOX.webp',
         price: 195000,
         desc: '417 funciones. Natural Display, modo estadístico y matricial. Muy popular en universidad.',
         features: [
@@ -175,7 +175,7 @@ colegio: {
     {
         name: 'Casio fx-82ES PLUS',
         img: 'assets/FX-82ESPLUS.webp',
-        boxImg: '',
+        boxImg: 'FX-82ESPLUSBOX.webp',
         price: 177000,
         desc: '252 funciones. Natural Textbook Display. Perfecta para colegio y exámenes de ingreso.',
         features: [
