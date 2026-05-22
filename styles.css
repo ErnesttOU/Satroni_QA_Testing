@@ -150,24 +150,6 @@ border: 1.5px solid var(--border);
 .btn-whatsapp:hover { color: #25D366; border-color: #25D366; background: #fff; }
 .btn-whatsapp svg { flex-shrink: 0; }
 
-.seo-intro {
-background: var(--light);
-border-top: 1px solid var(--border);
-border-bottom: 1px solid var(--border);
-padding: 20px 5%;
-text-align: center;
-    }
-.seo-intro p {
-font-size: 0.82rem;
-color: var(--gray);
-line-height: 1.7;
-max-width: 780px;
-margin: 0 auto;
-    }
-.seo-intro strong {
-color: var(--dark);
-font-weight: 600;
-
 /* ── SECTIONS ── */
 section { padding: 64px 5%; }
 .section-title {
