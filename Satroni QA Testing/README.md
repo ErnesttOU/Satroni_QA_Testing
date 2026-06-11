@@ -14,11 +14,11 @@ Postman v7.54
 
 | Método | Endpoint | Descripción | Código | Resultado |
 |--------|----------|-------------|--------|-----------|
-| GET | /entregras | Obtener todos los registros | 200 OK | ✅ Pass |
-| GET | /entregras?nombre=eq.X | Filtrar por nombre | 200 OK | ✅ Pass |
-| POST | /entregras | Insertar nuevo registro | 201 Created | ✅ Pass |
-| DELETE | /entregras?id=eq.X | Eliminar registro | 204 No Content | ✅ Pass |
-| GET | /entregras (sin auth) | Acceso sin credenciales | 401 Unauthorized | ✅ Pass |
+| GET | /entregas | Obtener todos los registros | 200 OK | ✅ Pass |
+| GET | /entregas?nombre=eq.X | Filtrar por nombre | 200 OK | ✅ Pass |
+| POST | /entregas | Insertar nuevo registro | 201 Created | ✅ Pass |
+| DELETE | /entregas?id=eq.X | Eliminar registro | 204 No Content | ✅ Pass |
+| GET | /entregas (sin auth) | Acceso sin credenciales | 401 Unauthorized | ✅ Pass |
 
 ## Hallazgos
 - La API responde correctamente en todos los 
