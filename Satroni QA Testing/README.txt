@@ -38,3 +38,10 @@ No se detectaron defectos críticos.
 > **Nota:** Los headers de autenticación usan 
 > la anon key pública de Supabase, segura para 
 > uso en frontend y testing.
+
+## 🐛 Bug Tracking — JIRA
+
+Proyecto QA Testing con 5 bugs documentados, 
+priorizados y asignados en JIRA Scrum.
+
+![JIRA Board](assets/jira-board.png)
