@@ -44,4 +44,4 @@ No se detectaron defectos críticos.
 Proyecto QA Testing con 5 bugs documentados, 
 priorizados y asignados en JIRA Scrum.
 
-![JIRA Board](jira-board.png)
+![JIRA Board](assets/jira-board.png)
